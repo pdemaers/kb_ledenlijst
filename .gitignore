@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Streamlit secrets
+.streamlit/secrets.toml
+
 # PyBuilder
 .pybuilder/
 target/
