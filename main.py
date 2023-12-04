@@ -378,9 +378,9 @@ if st.session_state["authentication_status"]:
     # Execute the appropriate function based on the selected option menu
     if selected == 'Ledenlijst':
         ledenlijst_tonen()
-    elif selected == 'Toevoegen':
+    elif selected == 'Lid Toevoegen':
         lid_toevoegen()
-    elif selected == "Verwijderen":
+    elif selected == "Lid Verwijderen":
         lid_verwijderen()
-    elif selected == "Aanpassen":
+    elif selected == "Lid Aanpassen":
         lid_aanpassen()
