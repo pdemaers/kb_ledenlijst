@@ -74,6 +74,10 @@ docs/_build/
 # Streamlit secrets
 .streamlit/secrets.toml
 
+# Editor
+.vscode/
+.vscode
+
 # PyBuilder
 .pybuilder/
 target/
