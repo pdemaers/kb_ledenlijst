@@ -27,6 +27,7 @@ def connect_to_mongodb() -> MongoClient:
     db = client[st.secrets["MongoDB"]["DATABASE_NAME"]]
     collection = db[st.secrets["MongoDB"]["COLLECTION_NAME"]]
     #client.close()
+    #client.close()
     return collection
 
 def get_data() -> pd.DataFrame:
