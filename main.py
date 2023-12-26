@@ -7,6 +7,7 @@ import datetime as dt
 from datetime import date
 from pathlib import Path
 import streamlit_authenticator as stauth
+import phonenumbers
 
 def connect_to_mongodb() -> MongoClient:
     """
@@ -25,6 +26,7 @@ def connect_to_mongodb() -> MongoClient:
     client = MongoClient(f"mongodb+srv://{username}:{password}@{cluster_url}/")
     db = client[st.secrets["MongoDB"]["DATABASE_NAME"]]
     collection = db[st.secrets["MongoDB"]["COLLECTION_NAME"]]
+    #client.close()
     return collection
 
 def get_data() -> pd.DataFrame:
@@ -42,18 +44,6 @@ def get_data() -> pd.DataFrame:
     df = pd.DataFrame(list(collection.find()))
     return df
 
-def aantal_actuele_leden(df):
-    """Function to calculate the number of actual members based on the actueel_lid column
-
-    Args:
-        pandas.DataFrame: Dataframe with all the members
-
-    Returns:
-        String: Number of actual members (formatted as string)
-    """
-
-    #return aantal_actuele_leden = 
-
 def ledenlijst_tonen():
     """
     Shows the full member list based on the corresponding MongoDB collection
@@ -65,7 +55,11 @@ def ledenlijst_tonen():
     None
     """
 
-    st.dataframe(get_data(),
+    ledenlijst = get_data()
+
+    st.write("Aantal actuele leden: " + str(ledenlijst[ledenlijst['Actueel_lid'] == 'Ja'].shape[0]))
+
+    st.dataframe(ledenlijst,
                  column_order=("ID","Partnerid","Aanspreekvorm","Naam","Voornaam","Straat","Postcode","Woonplaats","Landcode","Telefoon","GSM","Email","Geboortedatum","Enieuwsbrief","Nieuwbrief","Actueel_lid","Lidgeld","Begeleider"), 
                  column_config={
                      "ID": st.column_config.NumberColumn(
@@ -117,7 +111,7 @@ def ledenlijst_tonen():
                      "Nieuwbrief": st.column_config.CheckboxColumn(
                          "Nieuwsbrief"
                      ),
-                     "Actueel_lid": st.column_config.CheckboxColumn(
+                     "Actueel_lid": st.column_config.TextColumn(
                          "Actueel lid"
                      ),
                      "Lidgeld": st.column_config.CheckboxColumn(
@@ -130,6 +124,40 @@ def ledenlijst_tonen():
                  },
                  use_container_width=True, 
                  hide_index=True)
+
+
+def nieuw_lid_ID() -> str:
+    """
+    Get the maximum value of the 'ID' field from the specified MongoDB collection and return this value + 1.
+
+    Parameters:
+    none
+
+    Returns:
+    - str: The maximum value of the 'ID' field + 1 
+    """
+    collection = connect_to_mongodb()
+    current_max_id = collection.find_one(sort=[("ID", -1)], projection={"_id": 0, "ID": 1})["ID"]
+    return str(int(current_max_id) + 1) if current_max_id else "1"
+
+def format_phonenumber(phonenr, country):
+    """
+    Function to format a phonenumber
+
+    Args:
+        phonenr (_type_): _description_
+
+    Returns:
+        string: formatted phonenumber as string
+    """
+
+    if phonenr != "":
+        phonenr_parsed = phonenumbers.parse(phonenr, country)
+        return phonenumbers.format_number(phonenr_parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+    else:
+        return ""
+
+
 
 def lid_toevoegen():
     """
@@ -147,7 +175,7 @@ def lid_toevoegen():
         col1, col2 = st.columns(2, gap="medium")
 
         with col1:
-            id = st.text_input("Lid id")
+            id = st.text_input("Lid id", value=nieuw_lid_ID(), disabled=True)
             partnerid = st.text_input("Partner id") 
             aanspreekvorm = st.selectbox("Aanspreekvorm", ["Mijnheer", "Mevrouw"])
             naam = st.text_input("Naam")
@@ -162,9 +190,9 @@ def lid_toevoegen():
             gsm = st.text_input("GSM")
             email = st.text_input("Email")
             geboortedatum = st.date_input("Geboortedatum", min_value=dt.date(1900,1,1), format="DD/MM/YYYY")
+            actueel_lid = st.selectbox("Actueel lid", ["Ja", "Nee", "Adres"])
             enieuwsbrief = st.checkbox("Enieuwsbrief")
             nieuwsbrief = st.checkbox("Nieuwsbrief")
-            actueel_lid = st.checkbox("Actueel lid")
             lidgeld = st.checkbox("Lidgeld")
             begeleider = st.checkbox("Begeleider")
 
@@ -184,7 +212,7 @@ def lid_toevoegen():
                 "Postcode": postcode,
                 "Woonplaats": woonplaats,
                 "Landcode": landcode,
-                "Telefoon": telefoon,
+                "Telefoon": format_phonenumber(telefoon, landcode),
                 "Email": email,
                 "Geboortedatum": dt.datetime.combine(geboortedatum, dt.time()),
                 "Enieuwsbrief": enieuwsbrief,
@@ -192,7 +220,7 @@ def lid_toevoegen():
                 "Actueel_lid": actueel_lid,
                 "Lidgeld": lidgeld,
                 "Begeleider": begeleider,
-                "GSM": gsm
+                "GSM": format_phonenumber(gsm, landcode)
                 }
 
             try:
@@ -287,9 +315,9 @@ def lid_aanpassen():
             gsm = st.text_input("GSM", value=member_data.get("GSM",""))
             email = st.text_input("Email", value=member_data.get("Email",""))
             geboortedatum = st.date_input("Geboortedatum", value=member_data.get("Geboortedatum",""), min_value=dt.date(1900,1,1), format="DD/MM/YYYY")
+            actueel_lid = st.selectbox("Actueel lid", ["Ja", "Nee", "Adres"], index=["Ja", "Nee", "Adres"].index(member_data.get("Actueel_lid","Ja")))
             enieuwsbrief = st.checkbox("Enieuwsbrief", value=member_data.get("Enieuwsbrief",""))
             nieuwsbrief = st.checkbox("Nieuwsbrief", value=member_data.get("Nieuwsbrief",""))
-            actueel_lid = st.checkbox("Actueel lid", value=member_data.get("Actueel_lid",""))
             lidgeld = st.checkbox("Lidgeld", value=member_data.get("Lidgeld",""))
             begeleider = st.checkbox("Begeleider", value=member_data.get("Begeleider",""))
 
@@ -309,7 +337,7 @@ def lid_aanpassen():
                 "Postcode": postcode,
                 "Woonplaats": woonplaats,
                 "Landcode": landcode,
-                "Telefoon": telefoon,
+                "Telefoon": format_phonenumber(telefoon, landcode),
                 "Email": email,
                 "Geboortedatum": dt.datetime.combine(geboortedatum, dt.time()),
                 "Enieuwsbrief": enieuwsbrief,
@@ -317,7 +345,7 @@ def lid_aanpassen():
                 "Actueel_lid": actueel_lid,
                 "Lidgeld": lidgeld,
                 "Begeleider": begeleider,
-                "GSM": gsm
+                "GSM": format_phonenumber(gsm, landcode)
                 }
             
             try:
@@ -325,6 +353,7 @@ def lid_aanpassen():
                 st.success(f"Lid met ID {selected_id} is aangepast.")
             except:
                 st.error(f"Lid met ID {selected_id} kon niet aangepast worden.")
+
 
 # ---------------------------------------------------------------------------------
 # Main Streamlit app
