@@ -387,7 +387,7 @@ def send_email(to_email: str, subject: str, message: str, attachment_path: str) 
     """
     # Set up the MIME
     msg = MIMEMultipart()
-    msg['From'] = 'pdemaers@gmail.com'
+    msg['From'] = st.secrets["email"]["email_from"]
     msg['To'] = to_email
     msg['Subject'] = subject
 
@@ -401,10 +401,10 @@ def send_email(to_email: str, subject: str, message: str, attachment_path: str) 
         msg.attach(part)
 
     # Connect to SMTP server and send the email
-    smtp_server = 'smtp.gmail.com'
-    smtp_port = 587
-    smtp_username = 'pdemaers@gmail.com'
-    smtp_password = st.secrets["app_key"]["email_app_key"]
+    smtp_server = st.secrets["email"]["email_smtp_server"]
+    smtp_port = st.secrets["email"]["email_smtp_port"]
+    smtp_username = st.secrets["email"]["email_smtp_username"]
+    smtp_password = st.secrets["email"]["email_app_key"]
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
         server.starttls()
