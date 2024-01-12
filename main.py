@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import streamlit as st
 from streamlit_option_menu import option_menu
 import pandas as pd
@@ -8,6 +8,15 @@ from datetime import date
 from pathlib import Path
 import streamlit_authenticator as stauth
 import phonenumbers
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import landscape, A4
+from datetime import datetime
+import pdfkit as pdf
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 
 def connect_to_mongodb() -> MongoClient:
     """
@@ -45,7 +54,7 @@ def get_data() -> pd.DataFrame:
     df = pd.DataFrame(list(collection.find()))
     return df
 
-def ledenlijst_tonen():
+def ledenlijst_tonen(loggedin_user):
     """
     Shows the full member list based on the corresponding MongoDB collection
 
@@ -125,8 +134,17 @@ def ledenlijst_tonen():
                  },
                  use_container_width=True, 
                  hide_index=True)
-
-
+    
+    if loggedin_user == "Administrator":
+        if st.button("Jaarafsluiting"):
+            if st.button("Annuleer"):
+                st.warning("Jaarafsluiting geannuleerd.")
+            if st.button("Bevestig"):
+                try:
+                    st.success("Jaarafsluiting uitgevoerd.")
+                except:
+                    st.error("Fout bij jaarafsluiting.")
+                    
 def nieuw_lid_ID() -> str:
     """
     Get the maximum value of the 'ID' field from the specified MongoDB collection and return this value + 1.
@@ -355,6 +373,83 @@ def lid_aanpassen():
             except:
                 st.error(f"Lid met ID {selected_id} kon niet aangepast worden.")
 
+def send_email(to_email: str, subject: str, message: str, attachment_path: str) -> None:
+    """
+    Send an email with an attachment.
+
+    Parameters:
+    - to_email (str): The recipient's email address.
+    - subject (str): The subject of the email.
+    - message (str): The body of the email.
+    - attachment_path (str): The file path of the attachment.
+
+    Returns:
+    None
+    """
+    # Set up the MIME
+    msg = MIMEMultipart()
+    msg['From'] = 'pdemaers@gmail.com'
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    # Attach message
+    msg.attach(MIMEText(message, 'plain'))
+
+    # Attach file
+    with open(attachment_path, 'rb') as file:
+        part = MIMEApplication(file.read(), Name="attachment.pdf")
+        part['Content-Disposition'] = f'attachment; filename="{attachment_path}"'
+        msg.attach(part)
+
+    # Connect to SMTP server and send the email
+    smtp_server = 'smtp.gmail.com'
+    smtp_port = 587
+    smtp_username = 'pdemaers@gmail.com'
+    smtp_password = st.secrets["app_key"]["email_app_key"]
+
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(msg['From'], to_email, msg.as_string())
+
+
+def nieuwsbrief_sturen() -> None:
+    """
+    Function to select and send the newsletter to all members for whom Enieuwsbrief is set to True
+
+    Returns:
+    None
+    """
+    st.title("Nieuwsbrief versturen")
+
+    # Get the members list
+    ledenlijst = get_data()
+
+    # Filter DataFrame based on 'Enieuwsbrief' column
+    email_lijst = ledenlijst[ledenlijst['Enieuwsbrief']]
+
+    # Custom subject and body fields
+    custom_subject = st.text_input("Onderwerp van het email bericht", "Onderwerp")
+    custom_body = st.text_area("Tekst van het email bericht", "Tekst")
+
+    # File upload
+    file_uploaded = st.file_uploader("Kies het nieuwsbrief bestand", type=["pdf"])
+
+    if file_uploaded:
+        st.success("Nieuwsbrief bestand geselecteerd.")
+
+        # Button to send email
+        if st.button("Verstuur nieuwsbrief"):
+            # Get file path
+            file_path = "uploaded_file.pdf"
+            with open(file_path, "wb") as file:
+                file.write(file_uploaded.getvalue())
+
+            # Send email for each selected address with custom subject and body
+            for email in email_lijst["Email"]:
+                send_email(email, custom_subject, custom_body, file_path)
+                st.success(f"Email verstuurd naar {email} met nieuwsbrief.")
+
 
 # ---------------------------------------------------------------------------------
 # Main Streamlit app
@@ -394,23 +489,34 @@ if st.session_state["authentication_status"] == None:
 
 if st.session_state["authentication_status"]:
 
-    authenticator.logout("Logout", "sidebar")
+    if name == "Administrator":
+        menu_options = ["Ledenlijst", "Lid Toevoegen", "Lid Verwijderen", "Lid Aanpassen","Nieuwsbrief"]
+        menu_icons = ["table", "person-fill-add", "person-fill-dash", "person-fill-gear","envelope-at"]
+    elif name == "Bestuur":
+        menu_options = ["Ledenlijst"]
+        menu_icons = ["table"]
 
     # Set up the main options menu
     with st.sidebar:
+        
+        authenticator.logout("Logout", "sidebar")
+        st.write(f"Ingelogd als: *{name}*")
+
         selected = option_menu(
-            menu_title="Menu",
-            options=["Ledenlijst", "Lid Toevoegen", "Lid Verwijderen", "Lid Aanpassen"],
-            icons=["table", "person-fill-add", "person-fill-dash", "person-fill-gear"],
+            menu_title = "Menu",
+            options = menu_options,
+            icons = menu_icons,
             menu_icon="cast"
         )
 
     # Execute the appropriate function based on the selected option menu
     if selected == 'Ledenlijst':
-        ledenlijst_tonen()
+        ledenlijst_tonen(name)
     elif selected == 'Lid Toevoegen':
         lid_toevoegen()
     elif selected == "Lid Verwijderen":
         lid_verwijderen()
     elif selected == "Lid Aanpassen":
         lid_aanpassen()
+    elif selected == "Nieuwsbrief":
+        nieuwsbrief_sturen()
