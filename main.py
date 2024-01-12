@@ -12,7 +12,6 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import landscape, A4
 from datetime import datetime
-import pdfkit as pdf
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -144,7 +143,7 @@ def ledenlijst_tonen(loggedin_user):
                     st.success("Jaarafsluiting uitgevoerd.")
                 except:
                     st.error("Fout bij jaarafsluiting.")
-                    
+
 def nieuw_lid_ID() -> str:
     """
     Get the maximum value of the 'ID' field from the specified MongoDB collection and return this value + 1.
