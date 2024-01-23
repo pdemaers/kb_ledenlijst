@@ -243,6 +243,8 @@ def lid_toevoegen():
                 "GSM": format_phonenumber(gsm, landcode)
                 }
 
+            st.write(nieuw_lid)
+
             try:
                 # Add the new member to the collection
                 #collection = connect_to_mongodb()
