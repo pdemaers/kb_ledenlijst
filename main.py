@@ -188,6 +188,8 @@ def lid_toevoegen():
     None
     """
 
+    collection = connect_to_mongodb()
+
     with st.form("Toevoegen", clear_on_submit=True):
 
         col1, col2 = st.columns(2, gap="medium")
@@ -243,11 +245,11 @@ def lid_toevoegen():
 
             try:
                 # Add the new member to the collection
-                collection = connect_to_mongodb()
+                #collection = connect_to_mongodb()
                 collection.insert_one(nieuw_lid)
                 st.success(f"Lid met ID {id} is toegevoegd.")
             except:
-                st.error(f"Lid met ID {id} kon niet toegevoegd worden.")
+                st.error(f"Lid met ID {id} kon niet worden toegevoegd.")
 
 
 
